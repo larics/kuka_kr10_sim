@@ -47,7 +47,7 @@ class PublishPoint():
 
         while not rospy.is_shutdown():
 
-            self.publish_msg([[0.0, -0.5, 0.5, 0.5, 0.0, 0.0, 0.0]])
+            self.publish_msg([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]])
             print ("Running!")
             rospy.sleep(3)
 
