@@ -5,12 +5,21 @@ from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import JointTrajectoryControllerState
 from trajectory_msgs.msg import JointTrajectoryPoint
 from trajectory_msgs.msg import JointTrajectory
+from sensor_msgs.msg import JointState
 from std_msgs.msg import Empty
 from std_msgs.msg import Header
 
 class PublishPoint():
     def __init__(self):
         self.trajPub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=1)
+
+        rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
+
+        self._jointState = JointState()
+
+    def jointStateCallback(self, msg):
+
+        self._jointState = msg
 
     def publish_msg(self, poses2go):
         # Set the message to publish as command.
