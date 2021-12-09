@@ -40,48 +40,52 @@ class PublishPoint():
         traj_vector.joint_names.append('joint_a6');
 
 
-        iter = 0.0
-        for column in poses2go:
+        iter = 1.0
+        row_no, col_no = poses2go.shape
+        for i in range(0, row_no):
             point = JointTrajectoryPoint()
             iter +=1
-            for q in column:
-                point.positions.append(q)
-                point.time_from_start.nsecs = 0
-                point.time_from_start.secs = int(iter*1)
+            #for j in range(0, col_no):
+            point.positions = poses2go[i, 0:col_no-1].tolist()[0]
+            point.time_from_start.nsecs = 0
+            point.time_from_start.secs = int(iter*1) ## Vrijeme za dolazak u zadanu tocku
+
             traj_vector.points.append(point)
     
  
 
         print (traj_vector)
-        print ('All systems go!')
+        #print ('All systems go!')
         self.trajPub.publish(traj_vector)   
 
     def get_dk(self, joint_state):
         # Funkcija implementira direktnu kinematiku robota KUKA KR10
         # ULAZI Funkcije: Pozicija zglobova robota joint_state za koju 
         #                 je potrebno odrediti direktnu kinematiku, 
-        #                 izrazeno kao JointState poruka.
-        # IZLAZI Funkcije: Poza flandze robota izrazena kao Pose poruka.
+        #                 izrazeno kao numpy vektor 6x1.
+        # IZLAZI Funkcije: Poza flandze robota izrazena kao numpy vektor 6x1.
 
         pass
 
     def get_ik(self, goal_pose, temp_joint_state):
         # Funkcija implementira analiticku inverznu kinematiku robota KUKA KR10
         # ULAZI Funkcije:
-        #   - goal_pose: Kartezijska poza flandze robota izrazena kao Pose
-        #   - temp_joint_state: Trenutna pozicija zglobova robota kao JointState
-        # IZLAZI Funkcije: Najblize rjesenje inverzne trenutnoj pozi, kao JointState.
+        #   - goal_pose: Kartezijska poza flandze robota izrazena kao numpy vektor 6x1
+        #   - temp_joint_state: Trenutna pozicija zglobova robota kao numpy vektor 6x1
+        # IZLAZI Funkcije: Najblize rjesenje inverzne trenutnoj pozi, 
+        #                   izrazeno kao numpy vektor 6x1.
 
         pass
 
     def taylor_path(self, w_1, w_2, q_0, tol=0.01):
         # Funkcija implementira Taylorov postupak
         # ULAZI Funkcije:
-        #   - w_1: Kartezijska poza pocetne tocke, izrazena kao Pose
-        #   - w_2: Kartezijska poza krajnje tocke, izrazena kao Pose
-        #   - q_0: Pocetna poza zglobova robota, izrazena kao JointState
+        #   - w_1: Kartezijska poza pocetne tocke, izrazena kao numpy vektor 6x1
+        #   - w_2: Kartezijska poza krajnje tocke, izrazena kao numpy vektor 6x1
+        #   - q_0: Pocetna poza zglobova robota, izrazena kao numpy vektor Nx1 
         #   - tol: Zadana tolerancija, izrazena kao Float64
-        # IZLAZI Funkcije: Tocke putanje, izrazene kao PoseArray.
+        # IZLAZI Funkcije: Tocke putanje, izrazene kao numpy matrica, 
+        #                  gdje je svaki novi red nova tocka.
 
         pass
 
@@ -126,11 +130,41 @@ class PublishPoint():
             for j in range(0, 3):
                 t_matrix[i, j] = r.as_matrix()[i, j]
 
-        print (t_matrix)
+        #print (t_matrix)
         return t_matrix
 
     def run(self):
+        rospy.sleep(1.0)
 
+        print ("Pomakni robota u tocku.")
+        ### Primjer slanja robota u tocke zadane
+        self.publish_msg(np.matrix([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]]))
+        rospy.sleep(5.0)
+
+        ### Point-To-Point gibanje
+        print ("Point-to-point ")
+        q_ptp = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
+                            [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
+                            [ 0.0000,    0.0268,   -1.4615,   -0.0000,    1.4347,    0.0000],
+                            [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159]])
+
+        self.publish_msg(q_ptp)
+        rospy.sleep(5.0)
+
+        ### Taylor gibanje
+        print ("Taylor ")
+        q_tay = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
+                            [-0.0000,    0.5682,   -1.8305,    0.0000,    1.2624,   -0.0000],
+                            [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
+                            [-0.1599,    0.2932,   -1.6661,    0.1630,    1.3755,   -0.0319],
+                            [ 0.0000,    0.0268,   -1.4615,   -0.0000,    1.4347,    0.0000],
+                            [ 0.1599,    0.2932,   -1.6661,   -0.1630,    1.3755,    0.0319],
+                            [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159]])
+
+        self.publish_msg(q_tay)
+        rospy.sleep(6.0)
+
+        '''
         while not rospy.is_shutdown():
 
             #self.publish_msg([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]])
@@ -146,7 +180,7 @@ class PublishPoint():
 
             print ("Running!")
             rospy.sleep(3)
-
+        '''
 
 if __name__ == '__main__':
 
