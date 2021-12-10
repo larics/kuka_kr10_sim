@@ -1,15 +1,18 @@
 <?xml version="1.0"?>
 <launch>
   <!-- startup simulated world -->
-  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="worlds/empty.world"/>
   </include> 
-
   <!-- send robot URDF to ROS param server,
        and spawn robot in Gazebo, along with necessary ROS nodes -->
   <include file="$(find kuka_kr10_gazebo)/launch/spawn_kr10.launch"/>
 
   <!-- init and start Gazebo ros_control interface -->
   <include file="$(find kuka_kr10_gazebo)/launch/kr10_control.launch"/>
+
+  <!-- Visualize if you want -->
+  <node name="visualizer" pkg="kuka_kr10_gazebo" type="visualizer.py" output="screen"/>
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find kuka_kr10_gazebo)/config/kuka_kr10_gazebo.rviz" />
 
 </launch>
