@@ -164,23 +164,6 @@ class PublishPoint():
         self.publish_msg(q_tay)
         rospy.sleep(6.0)
 
-        '''
-        while not rospy.is_shutdown():
-
-            #self.publish_msg([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]])
-
-            # TEST Pose->RotationMatrix
-            np_matrix = np.matrix([[1, 0, 0, 0.1], 
-                                   [0, 1, 0, 0.2], 
-                                   [0, 0, 1, 0.3], 
-                                   [0, 0, 0, 1]])
-            pose_value      =   self.tmatrix2pose(np_matrix)
-            matrix_value    =   self.pose2tmatrix(pose_value)
-           
-
-            print ("Running!")
-            rospy.sleep(3)
-        '''
 
 if __name__ == '__main__':
 
