@@ -12,4 +12,6 @@
   <!-- init and start Gazebo ros_control interface -->
   <include file="$(find kuka_kr10_gazebo)/launch/kr10_control.launch"/>
 
+  <node name="tfToPoseNode" pkg="kuka_kr10_gazebo" type="tfToPose.py" output="screen"/>
+
 </launch>
