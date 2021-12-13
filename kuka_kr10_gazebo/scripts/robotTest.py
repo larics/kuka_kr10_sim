@@ -143,6 +143,7 @@ class PublishPoint():
 
         ### Point-To-Point gibanje
         print ("Point-to-point ")
+        ### NAPOMENA: Tocke zadane u q_ptp su samo primjeri. q_ptp trebate popuniti s rezultatima inverzne kinematike.
         q_ptp = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
                             [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
                             [ 0.0000,    0.0268,   -1.4615,   -0.0000,    1.4347,    0.0000],
@@ -153,6 +154,7 @@ class PublishPoint():
 
         ### Taylor gibanje
         print ("Taylor ")
+        ### NAPOMENA: Tocke zadane u q_tay su samo primjeri. q_tay trebate popuniti s rezultatima provedenog Taylorovog postupka.
         q_tay = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
                             [-0.0000,    0.5682,   -1.8305,    0.0000,    1.2624,   -0.0000],
                             [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
