@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-
+import sys
 import rospy
 from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import JointTrajectoryControllerState
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseStamped
 from trajectory_msgs.msg import JointTrajectoryPoint
 from trajectory_msgs.msg import JointTrajectory
 from sensor_msgs.msg import JointState
@@ -13,6 +13,12 @@ from std_msgs.msg import Header
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 
+import moveit_commander
+import moveit_msgs.msg
+from moveit_msgs.srv import GetPositionIK, GetPositionFK, GetPositionFKRequest, GetPositionFKResponse
+from moveit_msgs.msg import PositionIKRequest, RobotState, DisplayRobotState
+from tf import TransformListener
+
 class PublishPoint():
     def __init__(self):
         self.trajPub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=1)
@@ -20,6 +26,44 @@ class PublishPoint():
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
 
         self._jointState = JointState()
+
+        self.tf = TransformListener()
+
+        moveGroupName = 'kr10_plain'
+
+        ## BEGIN_SUB_TUTORIAL setup
+        ##
+        ## First initialize `moveit_commander`_ and a `rospy`_ node:
+        moveit_commander.roscpp_initialize(sys.argv)
+
+        ## Instantiate a `RobotCommander`_ object. This object is the outer-level interface to
+        ## the robot:
+        robot = moveit_commander.RobotCommander()
+
+        ## Instantiate a `PlanningSceneInterface`_ object.  This object is an interface
+        ## to the world surrounding the robot:
+        scene = moveit_commander.PlanningSceneInterface()
+
+        # robotGroupName is the group from moveit
+        group = moveit_commander.MoveGroupCommander(moveGroupName)
+        group.allow_replanning(True)
+        group.allow_looking(True)
+
+
+        planning_frame = group.get_planning_frame()
+        eef_link = group.get_end_effector_link()
+        group_names = robot.get_group_names()
+
+
+        # Misc variables
+        self.box_name = ''
+        self.robot = robot
+        self.scene = scene
+        self.group = group
+        self.planning_frame = planning_frame
+        self.eef_link = eef_link
+        self.group_names = group_names
+        self.fileForLogging = None
 
     def jointStateCallback(self, msg):
 
@@ -66,16 +110,40 @@ class PublishPoint():
         # IZLAZI Funkcije: Poza flandze robota izrazena kao numpy vektor 6x1.
 
         pass
-
-    def get_ik(self, goal_pose, temp_joint_state):
-        # Funkcija implementira analiticku inverznu kinematiku robota KUKA KR10
+    
+    def get_ik (self, target, temp_joint_state):
+        # Inverzna kinematika preko MoveiITa.
         # ULAZI Funkcije:
-        #   - goal_pose: Kartezijska poza flandze robota izrazena kao numpy vektor 6x1
-        #   - temp_joint_state: Trenutna pozicija zglobova robota kao numpy vektor 6x1
-        # IZLAZI Funkcije: Najblize rjesenje inverzne trenutnoj pozi, 
-        #                   izrazeno kao numpy vektor 6x1.
+        #   - target: Kartezijska pozicija flandze robota izrazena kao numpy vektor 3x1
+        #             Orijentacija fiksna, prema naprijed
+        #   - temp_joint_state: Trenutna pozicija zglobova robota kao lista 6x1
+        # IZLAZI Funkcije: Rjesenje inverzne kinematike kao lista 6x1
 
-        pass
+        targetPose = PoseStamped()
+        targetPose.header.stamp = rospy.Time.now()
+        targetPose.pose.position.x = target[0]
+        targetPose.pose.position.y = target[1]
+        targetPose.pose.position.z = target[2]
+        targetPose.pose.orientation.w = 1 
+
+        robotTemp = RobotState()
+        robotTemp.joint_state.name = ['joint_a1', 'joint_a2', 'joint_a3', 'joint_a4', 'joint_a5', 'joint_a6']
+        robotTemp.joint_state.position = temp_joint_state
+
+        service_request = PositionIKRequest()
+        service_request.group_name = "kr10_plain"
+        service_request.ik_link_name = "link_6"
+        service_request.pose_stamped = targetPose
+        service_request.robot_state = robotTemp
+        service_request.timeout.secs = 1
+
+        rospy.wait_for_service('compute_ik')
+        compute_ik = rospy.ServiceProxy('compute_ik', GetPositionIK)
+
+        resp = compute_ik(service_request)
+    
+        return list(resp.solution.joint_state.position)
+
 
     def taylor_path(self, w_1, w_2, q_0, tol=0.01):
         # Funkcija implementira Taylorov postupak
@@ -136,6 +204,10 @@ class PublishPoint():
     def run(self):
         rospy.sleep(1.0)
 
+        
+        print ("IK za (0.6, 0.3, 0.4) = ", self.get_ik([0.6, 0.3, 0.4], [0, -1.5708, 1.5708, 0, 1.5708, 0]))
+
+        '''
         print ("Pomakni robota u tocku.")
         ### Primjer slanja robota u tocke zadane
         self.publish_msg(np.matrix([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]]))
@@ -165,7 +237,7 @@ class PublishPoint():
 
         self.publish_msg(q_tay)
         rospy.sleep(6.0)
-
+        '''
 
 if __name__ == '__main__':
 
