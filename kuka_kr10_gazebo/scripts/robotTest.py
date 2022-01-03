@@ -207,7 +207,7 @@ class PublishPoint():
         
         print ("IK za (0.6, 0.3, 0.4) = ", self.get_ik([0.6, 0.3, 0.4], [0, -1.5708, 1.5708, 0, 1.5708, 0]))
 
-        '''
+        
         print ("Pomakni robota u tocku.")
         ### Primjer slanja robota u tocke zadane
         self.publish_msg(np.matrix([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]]))
@@ -237,7 +237,7 @@ class PublishPoint():
 
         self.publish_msg(q_tay)
         rospy.sleep(6.0)
-        '''
+        
 
 if __name__ == '__main__':
 

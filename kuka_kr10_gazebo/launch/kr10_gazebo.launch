@@ -18,5 +18,7 @@
   <!--node name="visualizer" pkg="kuka_kr10_gazebo" type="visualizer.py" output="screen"/-->
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find kuka_kr10_gazebo)/config/kuka_kr10_gazebo.rviz" />
 
+  <!-- MoveIT-->
+  <include file="$(find kuka_kr10_moveit_config)/launch/move_group.launch"/>
 
 </launch>
