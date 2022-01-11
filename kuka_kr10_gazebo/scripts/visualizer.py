@@ -31,7 +31,7 @@ def main():
 	time_now = rospy.Time.now()
 	goal_path = Path()
 	goal_path.header.frame_id = 'base_link'
-	goal_points = [[0.7, -0.2, 0.6], [0.7, 0.2, 0.6], [0.7, 0.0, 0.9], [0.7, -0.2, 0.6]] #[[0.6,0.,0.8], [0.6,-0.3,0.4], [0.6,0.,0.], [0.6,0.3,0.4], [0.6,0.,0.8]]
+	goal_points = [[0.6, 0.0, 0.8], [0.6, -0.3, 0.4], [0.6, 0.0, 0.1], [0.6, 0.3, 0.4], [0.6, 0.0, 0.8]] #[[0.6,0.,0.8], [0.6,-0.3,0.4], [0.6,0.,0.], [0.6,0.3,0.4], [0.6,0.,0.8]]
 	goal_path.header.stamp = time_now
 	for point in goal_points:
 		goal_pose = PoseStamped()

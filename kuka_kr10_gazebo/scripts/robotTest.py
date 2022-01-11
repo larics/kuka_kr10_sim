@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import rospy
+import copy
 from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import JointTrajectoryControllerState
 from geometry_msgs.msg import Pose, PoseStamped
@@ -18,6 +19,8 @@ import moveit_msgs.msg
 from moveit_msgs.srv import GetPositionIK, GetPositionFK, GetPositionFKRequest, GetPositionFKResponse
 from moveit_msgs.msg import PositionIKRequest, RobotState, DisplayRobotState
 from tf import TransformListener
+
+import math
 
 class PublishPoint():
     def __init__(self):
@@ -65,11 +68,27 @@ class PublishPoint():
         self.group_names = group_names
         self.fileForLogging = None
 
+        self.DH_table = np.matrix([[0.0,                    400.0/1000.,    math.pi/2,  25.0/1000.],
+                                   [math.pi/2-math.pi/2*1,  0.0,            0.0,        560.0/1000.],
+                                   [0.0+math.pi/2*1,        0.0,            math.pi/2,  35.0/1000.],
+                                   [math.pi*1,              515.0/1000.,    math.pi/2,  0.0],
+                                   [math.pi*1,              0.0,            math.pi/2,  0.0],
+                                   [-math.pi/2*1,           80.0/1000.,     0.0,        0.0]])
+
+        self.DH_joint_correction = [-1.0, -1.0, -1.0, -1.0, -1.0, 1.0]
+
+        self.W = np.matrix([[0.6,  0.0, 0.8, 1, 0, 0],
+                            [0.6, -0.3, 0.4, 1, 0, 0],
+                            [0.6,  0.0, 0.1, 1, 0, 0],
+                            [0.6,  0.3, 0.4, 1, 0, 0]])
+
+        self.Q = np.zeros(np.shape(self.W))
+
     def jointStateCallback(self, msg):
 
         self._jointState = msg
 
-    def publish_msg(self, poses2go):
+    def publish_msg(self, poses2go, delta_t=1):
         # Set the message to publish as command.
         traj_vector = JointTrajectory()
         # Current ROS time stamp
@@ -84,22 +103,17 @@ class PublishPoint():
         traj_vector.joint_names.append('joint_a6');
 
 
-        iter = 1.0
+        iter = 0
         row_no, col_no = poses2go.shape
+        #print ("row_no, col_no: ", row_no, col_no)
         for i in range(0, row_no):
             point = JointTrajectoryPoint()
             iter +=1
-            #for j in range(0, col_no):
-            point.positions = poses2go[i, 0:col_no-1].tolist()[0]
-            point.time_from_start.nsecs = 0
-            point.time_from_start.secs = int(iter*1) ## Vrijeme za dolazak u zadanu tocku
+            point.positions = poses2go[i, :].tolist()[0]
+            point.time_from_start = rospy.Duration.from_sec(iter*delta_t)  # Vrijeme za dolazak u zadanu tocku
 
             traj_vector.points.append(point)
     
- 
-
-        print (traj_vector)
-        #print ('All systems go!')
         self.trajPub.publish(traj_vector)   
 
     def get_dk(self, joint_state):
@@ -156,6 +170,206 @@ class PublishPoint():
         #                  gdje je svaki novi red nova tocka.
 
         pass
+        
+
+    def interpolate_q(self, Q, T_param):
+        # Polinomska interpolacija jedinstvenim polinomom u prostoru zglobova.
+        # Svaki od 4 reda ulazne matrice Q predstavlja vektor vrijednosti zglobova
+        # kroz koji manipulator mora proci. Izlaz funkcije su vrijednosti 
+        # otipkanog polinoma frekvencijom 10 Hz.
+        # ULAZI Funkcije:
+        #   - Q: Točke putanje u prostoru zglobova, izrazena kao numpy matrica Nx6
+        #   - T_param: Parametrička vrijemena segmenta
+        # IZLAZI Funkcije: Matrica točaka zglobova, otipkanog polinoma 
+        #       frekvencijom 1 Hz.
+
+        pass
+
+    def ho_cook(self, Q, v_max_lim, a_max_lim, f_s=250):
+        # Funkcija implementira Ho-Cookovu metodu planiranja trajektorije
+        # robotske ruke postivajuci zadana ogranicenja brzine (v_max) i akceleracije
+        # (a_max). Funkcija kao rezultat vraca otipkanu trajektoriju frekvencijom
+        # f_s u prostoru zglobova
+        # ULAZI Funkcije:
+        #   - Q: Točke putanje u prostoru zglobova, izrazena kao numpy matrica Nx6
+        #   - v_max: Ograničenja brzina zglobova, izrazeno kao vektor 6x1
+        #   - a_max: Ograničenja akceleracija zglobova, izrazeno kao vektor 6x1
+        #   - f_s: Frekvencija otipkavanja trajektorije
+        # IZLAZI Funkcije: Otipkane točke trajektorije, izrazene kao numpy matrica, 
+        #                  gdje je svaki novi red nova tocka.
+
+        m, n = np.shape(Q)
+
+        # Racunanje parametrickog vremena (5.24)
+        T = np.zeros((m, 1))
+        for k in range(0, m-1):
+            T[k+1] = ...
+
+        # Prva iteracija
+        iter_max = 10;
+        iter_cnt = 0;
+        S = 0
+        while (round(S, 2) != 1.00 and iter_cnt < iter_max):
+            if (iter_cnt > 0):   
+                # Skaliraj parametricka vremena
+                T = T*S
+            else:
+                # U prvoj iteraciji preskoci skaliranje
+                S = 1;
+            iter_cnt = iter_cnt + 1
+
+
+            # Izracunaj matrice M, A i Dq (5.50)
+            # Popuni matricu M
+            M = np.zeros((m-2, m-2))
+            M[0, 0] = 3/T[1] + 2/T[2]
+            ...
+
+            # Popuni matricu A
+            A = np.zeros((n, m-2))
+            A[:, 0] = np.sum(((6/T[1]**2)*np.sum([Q[1, :], -1*Q[0, :]], axis=0), (3/T[2]**2)*np.sum([Q[2, :], -1*Q[1, :]], axis=0)), axis=0)
+            ...
+
+            # Izracunaj Dq
+            Dq = np.matmul(A, np.linalg.pinv(M))
+
+            # Izracunaj matricu B
+            B4 = np.zeros((n, 5, 2))
+            B3 = np.zeros((n, 4, m-3))
+
+            # Prvi segment (5.35)
+            Q1 = np.zeros((n, 4))
+            Q1[:, 0] = ...
+
+            T1 = np.zeros((4, 5))
+            T1[0, 0] = ...
+
+            B4[:, :, 0] = ...
+
+            # Medjusegmenti (5.23)
+            for i in range(1, m-2):
+                T_temp = np.zeros((4, 4))
+                Q_temp = np.zeros((n, 4))
+
+                Q_temp[:, 0] = ...
+
+                T_temp[0, 0] = ...
+
+                B3[:, :, i-1] = ...
+
+            # Zadnji segment (5.41)
+            Tm = np.zeros((4, 5))
+            Qm = np.zeros((n, 4))
+
+            Qm[:, 0] = ...
+
+            Tm[0, 0] = ...
+            
+            B4[:, :, 1] = ...
+
+            # Odredi max. brzine i akceleracije
+            V_max = np.zeros((n, m-1))
+            for i in range(0, n):
+                V_max[i, 0] =       max(abs((np.polyval(np.polyder(B4[i, range(4, -1, -1), 0]),     np.linspace(0, T[1], (T[1]/0.01))) )))
+            for k in range(1, m-2):
+                for i in range(0, n):
+                    V_max[i, k] =   max(abs((np.polyval(np.polyder(B3[i, range(3, -1, -1), k-1]),   np.linspace(0, T[k+1], (T[k+1]/0.01))) )))
+            for i in range(0, n):
+                V_max[i, m-2] =     max(abs((np.polyval(np.polyder(B4[i, range(4, -1, -1), 1]),     np.linspace(0, T[m-1], (T[m-1]/0.01))) )))
+
+            A_max = np.zeros((n, m-1))
+            for i in range(0, n):
+                A_max[i, 0] =  ...
+            for k in range(1, m-2):
+                for i in range(0, n):
+                    A_max[i, k] = ...
+            for i in range(0, n):
+                A_max[i, m-2] =   ...
+
+            v_max = np.zeros((n, 1))
+            a_max = np.zeros((n, 1))
+            for i in range(0, n):
+                v_max[i, 0] = max(V_max[i, :])
+                a_max[i, 0] = max(A_max[i, :])
+
+            Sv = 0
+            Sa = 0 
+            # Odredi faktore normiranja (5.52-55)
+            for i in range(0, n):
+                if (v_max[i, 0]/v_max_lim[i] > Sv):
+                    Sv = v_max[i, 0]/v_max_lim[i]
+                if (a_max[i, 0]/a_max_lim[i] > Sa):
+                    Sa = (a_max[i, 0]/a_max_lim[i])**0.5
+            # Odredi ukupni faktor normiranja
+            S = ...
+
+        # Otipkavanje trajektorije
+        Ts = 1/f_s 
+        # Prvi segment
+        for i in range(0, n):
+            temp_q = np.polyval(B4[i, range(4, -1, -1), 0], np.linspace(0, T[1], (T[1]/Ts)))
+            temp_dq = np.polyval(np.polyder(B4[i, range(4, -1, -1), 0]), np.linspace(0, T[1], (T[1]/Ts)))
+            temp_ddq = np.polyval(np.polyder(np.polyder(B4[i, range(4, -1, -1), 0])), np.linspace(0, T[1], (T[1]/Ts)))
+
+            if (i == 0):
+                temp_seg_q = np.matrix(temp_q)
+                temp_seg_dq = np.matrix(temp_dq)
+                temp_seg_ddq = np.matrix(temp_ddq)
+            else:
+                temp_seg_q = np.hstack((temp_seg_q, np.matrix(temp_q)))
+                temp_seg_dq = np.hstack((temp_seg_dq, np.matrix(temp_dq)))
+                temp_seg_ddq = np.hstack((temp_seg_ddq, np.matrix(temp_ddq)))
+        Q_q = copy.deepcopy(temp_seg_q)
+        Q_dq = copy.deepcopy(temp_seg_dq)
+        Q_ddq = copy.deepcopy(temp_seg_ddq)
+        
+        # Medjusegmenti segment
+        for k in range(1, m-2):
+            for i in range(0, n):
+                temp_q = np.polyval(B3[i, range(3, -1, -1), k-1], np.linspace(0, T[k+1], (T[k+1]/Ts)))
+                temp_dq = np.polyval(np.polyder(B3[i, range(3, -1, -1), k-1]), np.linspace(0, T[k+1], (T[k+1]/Ts)))
+                temp_ddq = np.polyval(np.polyder(np.polyder(B3[i, range(3, -1, -1), k-1])), np.linspace(0, T[k+1], (T[k+1]/Ts)))
+
+                if (i == 0):
+                    temp_seg_q = np.matrix(temp_q)
+                    temp_seg_dq = np.matrix(temp_dq)
+                    temp_seg_ddq = np.matrix(temp_ddq)
+                else:
+                    temp_seg_q = np.hstack((temp_seg_q, np.matrix(temp_q)))
+                    temp_seg_dq = np.hstack((temp_seg_dq, np.matrix(temp_dq)))
+                    temp_seg_ddq = np.hstack((temp_seg_ddq, np.matrix(temp_ddq)))
+            if (k==1):
+                t_q = np.matrix(temp_seg_q)
+                t_dq = np.matrix(temp_seg_dq)
+                t_ddq = np.matrix(temp_seg_ddq)
+            else:
+                t_q = np.vstack((t_q, temp_seg_q))
+                t_dq = np.vstack((t_dq, temp_seg_dq))
+                t_ddq = np.vstack((t_ddq, temp_seg_ddq))
+        Q_q = copy.deepcopy(np.vstack((Q_q, t_q)))
+        Q_dq = copy.deepcopy(np.vstack((Q_dq, t_dq)))
+        Q_ddq = copy.deepcopy(np.vstack((Q_ddq, t_ddq)))
+        
+        # Zadnji segment
+        for i in range(0, n):
+            temp_q = np.polyval(B4[i, range(4, -1, -1), 1], np.linspace(0, T[m-1], (T[m-1]/Ts)))
+            temp_dq = np.polyval(np.polyder(B4[i, range(4, -1, -1), 1]), np.linspace(0, T[m-1], (T[m-1]/Ts)))
+            temp_ddq = np.polyval(np.polyder(np.polyder(B4[i, range(4, -1, -1), 1])), np.linspace(0, T[m-1], (T[m-1]/Ts)))
+
+            if (i == 0):
+                temp_seg_q = np.matrix(temp_q)
+                temp_seg_dq = np.matrix(temp_dq)
+                temp_seg_ddq = np.matrix(temp_ddq)
+            else:
+                temp_seg_q = np.hstack((temp_seg_q, np.matrix(temp_q)))
+                temp_seg_dq = np.hstack((temp_seg_dq, np.matrix(temp_dq)))
+                temp_seg_ddq = np.hstack((temp_seg_ddq, np.matrix(temp_ddq)))
+        Q_q = np.vstack((Q_q, temp_seg_q))
+        Q_dq = np.vstack((Q_dq, temp_seg_dq))
+        Q_ddq = np.vstack((Q_ddq, temp_seg_ddq))
+        
+
+        return [Q_q, Q_dq, Q_ddq]
 
     def tmatrix2pose(self, T):
         # Funkcija pretvara zadanu matricu transformacije u Pose
@@ -203,41 +417,33 @@ class PublishPoint():
 
     def run(self):
         rospy.sleep(1.0)
+        # Inverz waypointa
+        for i in range(0, np.shape(self.W)[0]):
+            self.Q[i] = np.matrix(self.get_ik(self.W[i].tolist()[0], [0, -math.pi/2, math.pi/2, 0, 0, 0]))
+
+        # Point-To-Point
+        self.publish_msg(..., 2)
+        rospy.sleep(10)
+
+        # Taylor
+        #self.publish_msg(taylor_q, 1)
+        #rospy.sleep(20.0)
 
         
-        print ("IK za (0.6, 0.3, 0.4) = ", self.get_ik([0.6, 0.3, 0.4], [0, -1.5708, 1.5708, 0, 1.5708, 0]))
-
+        # Interpolacija
+        # Odredi parametricka vremena
         
-        print ("Pomakni robota u tocku.")
-        ### Primjer slanja robota u tocke zadane
-        self.publish_msg(np.matrix([[0.0, -1.5707, 1.5707, 0.0, 1.5707, 0.0, 0.0]]))
-        rospy.sleep(5.0)
+        #...
+        #Q_interpolate = self.interpolate_q(self.Q, t_param)
 
-        ### Point-To-Point gibanje
-        print ("Point-to-point ")
-        ### NAPOMENA: Tocke zadane u q_ptp su samo primjeri. q_ptp trebate popuniti s rezultatima inverzne kinematike.
-        q_ptp = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
-                            [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
-                            [ 0.0000,    0.0268,   -1.4615,   -0.0000,    1.4347,    0.0000],
-                            [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159]])
+        self.publish_msg(Q_interpolate, 0.1)
+        rospy.sleep(15.0)
 
-        self.publish_msg(q_ptp)
-        rospy.sleep(5.0)
+        # Ho-Cook
+        [HC_Q, HC_dQ, HC_ddQ] = self.ho_cook(taylor_q, [...], [...])
+        print (HC_Q)
+        self.publish_msg(HC_Q, 1.0/250)
 
-        ### Taylor gibanje
-        print ("Taylor ")
-        ### NAPOMENA: Tocke zadane u q_tay su samo primjeri. q_tay trebate popuniti s rezultatima provedenog Taylorovog postupka.
-        q_tay = np.matrix([ [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159],
-                            [-0.0000,    0.5682,   -1.8305,    0.0000,    1.2624,   -0.0000],
-                            [-0.3120,    0.5526,   -1.7611,    0.3322,    1.2267,   -0.1159],
-                            [-0.1599,    0.2932,   -1.6661,    0.1630,    1.3755,   -0.0319],
-                            [ 0.0000,    0.0268,   -1.4615,   -0.0000,    1.4347,    0.0000],
-                            [ 0.1599,    0.2932,   -1.6661,   -0.1630,    1.3755,    0.0319],
-                            [ 0.3120,    0.5526,   -1.7611,   -0.3322,    1.2267,    0.1159]])
-
-        self.publish_msg(q_tay)
-        rospy.sleep(6.0)
-        
 
 if __name__ == '__main__':
 
